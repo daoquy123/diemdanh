@@ -1,0 +1,32 @@
+{
+  "facenet_highacc": {
+    "checkpoint": "weights/facenet_highacc/finetuned_custom/best.pth",
+    "closed_set_val": {
+      "accuracy": 0.9734938540138601,
+      "macro_f1": 0.9690992015736868,
+      "weighted_f1": 0.9734913043225988
+    },
+    "closed_set_test": {
+      "accuracy": 0.9741514492387071,
+      "macro_f1": 0.9705981776935692,
+      "weighted_f1": 0.9741614739234296
+    },
+    "best_threshold_on_val": 0.6000000000000003,
+    "val_at_best_threshold": {
+      "accuracy": 0.9689412716879964,
+      "macro_f1": 0.9721467842137559,
+      "weighted_f1": 0.976258701256543,
+      "unknown_rate": 0.015327027163741212
+    },
+    "test_at_best_threshold": {
+      "accuracy": 0.9698012039051039,
+      "macro_f1": 0.9740587649252442,
+      "weighted_f1": 0.9772387524387097,
+      "unknown_rate": 0.015504072031969244
+    },
+    "files": {
+      "threshold_sweep_val": "reports\\eval_models\\facenet_highacc\\threshold_sweep_val.json",
+      "hardest_identities": "reports\\eval_models\\facenet_highacc\\hardest_identities.json"
+    }
+  }
+}

@@ -1,0 +1,10 @@
+name: yolov8_face
+backend: ultralytics
+weights: yolov8n-face.pt      # auto-download from akanametov/yolov8-face if missing
+det_size: [640, 640]
+det_thresh: 0.4
+iou_thresh: 0.5
+device: cuda
+align_size: 112
+# YOLOv8-face không có landmark sẵn — sẽ fallback sang SCRFD lite cho landmark
+landmark_fallback: insightface

@@ -1,0 +1,8 @@
+name: casia-webface
+root: data/raw/casia-webface
+processed_root: data/processed/casia-webface
+image_size: 112
+# CASIA-WebFace has ~10K identities x ~50 images. Keep IDs with at least N images.
+min_images_per_id: 5
+val_ratio: 0.02
+auto_download: false   # CASIA needs manual download (license)

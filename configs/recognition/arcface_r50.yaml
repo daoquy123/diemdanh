@@ -1,0 +1,58 @@
+name: arcface_r50
+
+model:
+  backbone: iresnet50
+  embedding_dim: 512
+  dropout: 0.0
+  pretrained: insightface       # use insightface pretrained weights as init
+                                # alternative: "scratch" | path to .pth
+
+loss:
+  type: arcface
+  margin: 0.5
+  scale: 64.0
+  easy_margin: false
+
+data:
+  train_dataset: casia
+  image_size: 112
+  rgb: true
+  mean: [0.5, 0.5, 0.5]
+  std:  [0.5, 0.5, 0.5]
+  augment:
+    horizontal_flip: 0.5
+    color_jitter: { brightness: 0.2, contrast: 0.2, saturation: 0.1 }
+    blur: 0.1
+    rotation: 5
+
+train:
+  epochs: 25
+  batch_size: 128
+  num_workers: 4
+  optimizer: sgd
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 5e-4
+  scheduler: cosine
+  warmup_epochs: 1
+  log_interval: 50
+  ckpt_dir: weights/arcface_r50
+
+# Two-stage transfer learning recipe used by scripts/finetune_recognition.py
+finetune:
+  stage1:                        # warm-up: freeze backbone, train head only
+    epochs: 5
+    lr: 1e-3
+    freeze_backbone: true
+  stage2:                        # unfreeze partial backbone, low LR
+    epochs: 20
+    lr: 1e-4
+    freeze_backbone: false
+    unfreeze_last_n_blocks: 2
+  scheduler: cosine
+  weight_decay: 5e-4
+  batch_size: 64
+
+eval:
+  benchmark: lfw
+  metrics: [accuracy, tar_at_far, roc_auc, eer]

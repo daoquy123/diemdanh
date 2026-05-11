@@ -1,0 +1,32 @@
+name: minifasnet
+
+model:
+  backbone: minifasnetv2
+  num_classes: 2                # real / spoof
+  embedding_dim: 128
+  pretrained: scratch
+
+data:
+  image_size: 80
+  rgb: true
+  mean: [0.5, 0.5, 0.5]
+  std:  [0.5, 0.5, 0.5]
+  augment:
+    horizontal_flip: 0.5
+    color_jitter: { brightness: 0.3, contrast: 0.3 }
+    blur: 0.2
+
+train:
+  epochs: 30
+  batch_size: 128
+  num_workers: 4
+  optimizer: sgd
+  lr: 0.1
+  momentum: 0.9
+  weight_decay: 5e-4
+  scheduler: cosine
+  warmup_epochs: 1
+  ckpt_dir: weights/minifasnet
+
+inference:
+  spoof_threshold: 0.5

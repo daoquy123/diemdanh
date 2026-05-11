@@ -1,0 +1,18 @@
+name: retinaface
+backend: insightface          # SCRFD detector + 5-point landmarks
+model_pack: buffalo_s         # buffalo_s = scrfd_500m (~3MB), much faster on CPU
+                              # buffalo_l = scrfd_10g  (heavier, slightly more accurate)
+
+# Smaller det_size = much faster on CPU. 320x320 is enough for webcam at 720p.
+# Bump to (640, 640) when running batch alignment / dataset preparation.
+det_size: [320, 320]
+det_thresh: 0.5
+nms_thresh: 0.4
+device: cuda                  # falls back to CPU if no CUDA
+
+# Load only the detection module (5 keypoints come bundled with the SCRFD
+# detector) — skipping landmark_2d_106 / landmark_3d_68 / genderage / arcface
+# saves 4 redundant ONNX forward passes per face per frame.
+allowed_modules: [detection]
+
+align_size: 112               # output crop size for recognition

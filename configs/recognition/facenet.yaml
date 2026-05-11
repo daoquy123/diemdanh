@@ -1,0 +1,53 @@
+name: facenet
+
+model:
+  backbone: inception_resnet_v1
+  embedding_dim: 512
+  pretrained: vggface2          # uses facenet-pytorch weights
+                                # alternatives: "casia-webface" | "scratch"
+
+loss:
+  type: triplet
+  margin: 0.2
+  mining: semi_hard
+
+data:
+  train_dataset: casia
+  image_size: 160               # FaceNet standard input
+  rgb: true
+  mean: [0.5, 0.5, 0.5]
+  std:  [0.5, 0.5, 0.5]
+  augment:
+    horizontal_flip: 0.5
+    color_jitter: { brightness: 0.2, contrast: 0.2, saturation: 0.1 }
+    blur: 0.1
+    rotation: 5
+
+train:
+  epochs: 20
+  batch_size: 90                # 30 ids x 3 imgs/id (PK-batch for triplet)
+  num_workers: 4
+  optimizer: adam
+  lr: 5e-4
+  weight_decay: 5e-4
+  scheduler: cosine
+  warmup_epochs: 1
+  ckpt_dir: weights/facenet
+
+finetune:
+  stage1:
+    epochs: 5
+    lr: 1e-3
+    freeze_backbone: true
+  stage2:
+    epochs: 15
+    lr: 1e-4
+    freeze_backbone: false
+    unfreeze_last_n_blocks: 2
+  scheduler: cosine
+  weight_decay: 5e-4
+  batch_size: 60
+
+eval:
+  benchmark: lfw
+  metrics: [accuracy, tar_at_far, roc_auc, eer]

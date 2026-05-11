@@ -1,0 +1,9 @@
+name: custom
+root: data/raw/custom
+processed_root: data/processed/custom
+image_size: 112
+min_images_per_id: 3
+# Stratified per-identity split after alignment (train : val : test = 6 : 2 : 2)
+val_ratio: 0.2
+test_ratio: 0.2
+auto_download: false

@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Data & weights (heavy artifacts, never commit)
+data/raw/
+data/processed/
+data/splits/*.npy
+# Full dataset trees (often multi‑GB locally)
+/data/
+/train/
+/val/
+embeddings_db_finetuned/
+weights/
+checkpoints/
+runs/
+logs/
+outputs/
+mlruns/
+wandb/
+
+# Embedding store
+*.faiss
+*.index
+embeddings_db/
+
+# DB
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Reports artifacts
+reports/figures/*.png
+reports/figures/*.jpg
+!reports/figures/.gitkeep

@@ -1,0 +1,6 @@
+name: lfw
+root: data/raw/lfw
+pairs_file: data/raw/lfw/pairs.txt
+processed_root: data/processed/lfw
+image_size: 112
+auto_download: true

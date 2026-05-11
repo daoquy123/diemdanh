@@ -1,0 +1,58 @@
+name: facenet_highacc
+
+model:
+  backbone: inception_resnet_v1
+  embedding_dim: 512
+  pretrained: vggface2
+
+loss:
+  # For this custom-ID setting, ArcFace head usually converges cleaner than triplet.
+  type: arcface
+  margin: 0.5
+  scale: 32.0
+  easy_margin: false
+
+data:
+  train_dataset: casia
+  image_size: 160
+  rgb: true
+  mean: [0.5, 0.5, 0.5]
+  std:  [0.5, 0.5, 0.5]
+  augment:
+    # Reduce augmentation strength to raise train fit.
+    horizontal_flip: 0.3
+    color_jitter: { brightness: 0.1, contrast: 0.1, saturation: 0.05 }
+    blur: 0.03
+    rotation: 3
+
+train:
+  epochs: 20
+  batch_size: 90
+  num_workers: 4
+  optimizer: adam
+  lr: 5e-4
+  weight_decay: 2e-4
+  scheduler: cosine
+  warmup_epochs: 1
+  ckpt_dir: weights/facenet_highacc
+
+finetune:
+  stage1:
+    # Keep a short warm-up for classifier head.
+    epochs: 3
+    lr: 5e-4
+    freeze_backbone: true
+  stage2:
+    # Longer, deeper unfreeze to increase representation fit.
+    epochs: 18
+    lr: 8e-5
+    freeze_backbone: false
+    unfreeze_last_n_blocks: 5
+  scheduler: cosine
+  weight_decay: 2e-4
+  batch_size: 64
+
+eval:
+  benchmark: lfw
+  metrics: [accuracy, tar_at_far, roc_auc, eer]
+

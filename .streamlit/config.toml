@@ -1,0 +1,11 @@
+# Cho phép máy khác trên cùng mạng (LAN) truy cập: http://<IP-máy-bạn>:8501
+# Ra Internet công khai: dùng Cloudflare Tunnel / ngrok (xem scripts/run_streamlit_public.ps1)
+
+[server]
+address = "0.0.0.0"
+port = 8501
+enableCORS = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false

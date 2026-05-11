@@ -1,0 +1,10 @@
+name: merged_faces
+# Sau khi chạy merge_train_val_split: ảnh đã gộp + căn chỉnh kích thước giống nhau nằm tại processed_root
+processed_root: data/processed/merged_faces
+image_size: 112
+# Mỗi identity cần đủ ảnh để sau khi trừ val+test vẫn còn train
+min_images_per_id: 3
+# train : val : test = 6 : 2 : 2
+val_ratio: 0.2
+test_ratio: 0.2
+split_seed: 42
