@@ -3,34 +3,99 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Camera test nhận diện</title>
-  <meta name="description" content="Trang điểm danh sinh viên bằng camera mobile, hiển thị tên nhận diện theo thời gian thực." />
-  <link rel="stylesheet" href="/static/style.css" />
+  <title>Điểm danh bằng webcam</title>
+  <meta name="description" content="Giao diện điểm danh sinh viên bằng webcam, hỗ trợ live, chụp ảnh và tải ảnh lên." />
+  <link rel="stylesheet" href="/static/style.css?v=8" />
 </head>
-<body>
-  <main class="container">
-    <h1>Camera test nhận diện</h1>
-    <div class="preview-wrap">
-      <video id="video" autoplay playsinline muted class="preview"></video>
-      <img id="snapshot" class="preview snapshot hidden" alt="Ảnh vừa chụp" />
-      <div id="attendProgress" class="attend-progress hidden" aria-label="Tien trinh xac nhan diem danh">
-        <span id="attendPercent">0%</span>
+<body class="attend-page">
+  <main class="container attend-container">
+    <header class="attend-header">
+      <a class="back-link" href="/">← Trang chủ</a>
+      <div>
+        <p class="eyebrow">AI Attendance</p>
+        <h1>Điểm danh bằng webcam</h1>
+        <p class="lead">Mở webcam, giữ khuôn mặt trong khung và để hệ thống xác nhận tự động.</p>
       </div>
-    </div>
-    <div class="actions">
-      <button type="button" id="startBtn">Bắt đầu điểm danh (live)</button>
-      <button type="button" id="captureBtn" class="primary">Chụp ảnh (webcam)</button>
-      <button type="button" id="nativeCaptureBtn">Camera máy (chụp 1 tấm)</button>
-      <button type="button" id="pickBtn">Chọn ảnh từ máy</button>
-      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden />
-      <input type="file" id="nativeCaptureInput" accept="image/*" capture="user" hidden />
-      <button type="button" id="retakeBtn" class="hidden">Xem camera / chụp lại</button>
-      <button type="button" id="stopBtn">Dừng</button>
-    </div>
-    <p id="status">Chưa bắt đầu. Dùng live hoặc chụp một ảnh để thử.</p>
-    <section id="comparePanel" class="compare-panel hidden" aria-label="So sanh voi gallery"></section>
-    <a href="/">← Về trang chủ</a>
+    </header>
+
+    <section class="attend-layout" aria-label="Khu vực điểm danh">
+      <div class="camera-panel">
+        <div class="camera-toolbar">
+          <div>
+            <span id="cameraLabel" class="camera-label">Webcam sẵn sàng</span>
+            <span id="frameMeta" class="frame-meta">Chưa có khung hình</span>
+          </div>
+          <span id="liveIndicator" class="live-indicator" aria-live="polite">
+            <span></span> Tạm dừng
+          </span>
+        </div>
+
+        <div class="preview-wrap">
+          <video id="video" autoplay playsinline muted class="preview"></video>
+          <img id="snapshot" class="preview snapshot hidden" alt="Ảnh vừa chụp" />
+          <div class="face-guide" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div id="attendProgress" class="attend-progress hidden" aria-label="Tiến trình xác nhận điểm danh">
+            <span id="attendPercent">0%</span>
+          </div>
+        </div>
+
+        <div class="actions" aria-label="Tác vụ webcam">
+          <button type="button" id="startBtn" class="primary">
+            <span class="btn-icon" aria-hidden="true">▶</span>
+            Live
+          </button>
+          <button type="button" id="captureBtn">
+            <span class="btn-icon" aria-hidden="true">▣</span>
+            Chụp webcam
+          </button>
+          <button type="button" id="nativeCaptureBtn">
+            <span class="btn-icon" aria-hidden="true">◉</span>
+            Camera máy
+          </button>
+          <button type="button" id="pickBtn">
+            <span class="btn-icon" aria-hidden="true">↑</span>
+            Tải ảnh
+          </button>
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden />
+          <input type="file" id="nativeCaptureInput" accept="image/*" capture="user" hidden />
+          <button type="button" id="retakeBtn" class="hidden">
+            <span class="btn-icon" aria-hidden="true">↻</span>
+            Chụp lại
+          </button>
+          <button type="button" id="stopBtn" class="ghost">
+            <span class="btn-icon" aria-hidden="true">■</span>
+            Dừng
+          </button>
+        </div>
+      </div>
+
+      <aside class="status-panel" id="statusPanel" aria-live="polite">
+        <div class="status-topline">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusTitle">Sẵn sàng</span>
+        </div>
+        <p id="status">Chọn Live để điểm danh liên tục hoặc chụp một ảnh để kiểm tra.</p>
+        <div class="mode-list" aria-label="Chế độ nhận diện">
+          <div>
+            <strong>Live</strong>
+            <span>Tự xác nhận khi cùng một sinh viên khớp ổn định.</span>
+          </div>
+          <div>
+            <strong>Ảnh chụp</strong>
+            <span>Gửi một khung hình và hiển thị bảng so sánh gallery.</span>
+          </div>
+          <div>
+            <strong>Dự phòng</strong>
+            <span>Dùng camera máy hoặc tải ảnh khi trình duyệt chặn webcam.</span>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section id="comparePanel" class="compare-panel hidden" aria-label="So sánh với gallery"></section>
   </main>
-  <script src="/static/attend.js?v=6"></script>
+  <script src="/static/attend.js?v=8" charset="UTF-8"></script>
 </body>
 </html>

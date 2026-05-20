@@ -21,7 +21,7 @@ function setScanning(isScanning) {
 function setProgressPercent(percent) {
   const p = Math.max(0, Math.min(100, Math.round(percent)));
   scanPercent.textContent = `${p}%`;
-  scanProgress.style.background = `conic-gradient(#00ff80 ${p * 3.6}deg, rgba(0, 255, 128, 0.2) ${p * 3.6}deg)`;
+  scanProgress.style.background = `conic-gradient(#0000cc ${p * 3.6}deg, rgba(255, 242, 0, 0.35) ${p * 3.6}deg)`;
 }
 
 async function startCamera() {

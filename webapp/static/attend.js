@@ -1,8 +1,11 @@
 const video = document.getElementById("video");
 const snapshot = document.getElementById("snapshot");
 const statusEl = document.getElementById("status");
+const statusPanel = document.getElementById("statusPanel");
+const statusTitle = document.getElementById("statusTitle");
 const startBtn = document.getElementById("startBtn");
 const captureBtn = document.getElementById("captureBtn");
+const nativeCaptureBtn = document.getElementById("nativeCaptureBtn");
 const pickBtn = document.getElementById("pickBtn");
 const fileInput = document.getElementById("fileInput");
 const nativeCaptureInput = document.getElementById("nativeCaptureInput");
@@ -11,6 +14,9 @@ const stopBtn = document.getElementById("stopBtn");
 const attendProgress = document.getElementById("attendProgress");
 const attendPercent = document.getElementById("attendPercent");
 const comparePanel = document.getElementById("comparePanel");
+const cameraLabel = document.getElementById("cameraLabel");
+const frameMeta = document.getElementById("frameMeta");
+const liveIndicator = document.getElementById("liveIndicator");
 
 let stream = null;
 let timer = null;
@@ -23,6 +29,35 @@ const REQUIRED_SECONDS = 1.5;
 const MIN_SIM = 0.68;
 const MIN_MARGIN = 0.06;
 
+const STATUS_TITLES = {
+  idle: "Sẵn sàng",
+  live: "Đang live",
+  busy: "Đang xử lý",
+  success: "Đã xác nhận",
+  warning: "Cần thử lại",
+  error: "Có lỗi",
+};
+
+function setStatus(message, tone = "idle", title = "") {
+  statusEl.textContent = message;
+  if (statusTitle) statusTitle.textContent = title || STATUS_TITLES[tone] || STATUS_TITLES.idle;
+  if (statusPanel) statusPanel.dataset.tone = tone;
+}
+
+function setCameraState(active, label = active ? "Camera bật" : "Tạm dừng") {
+  if (!liveIndicator) return;
+  liveIndicator.classList.toggle("is-on", active);
+  liveIndicator.innerHTML = `<span></span> ${label}`;
+}
+
+function setCameraLabel(text) {
+  if (cameraLabel) cameraLabel.textContent = text;
+}
+
+function setFrameMeta(text) {
+  if (frameMeta) frameMeta.textContent = text;
+}
+
 function setConfirming(flag) {
   attendProgress.classList.toggle("hidden", !flag);
 }
@@ -30,11 +65,26 @@ function setConfirming(flag) {
 function setConfirmProgress(percent) {
   const p = Math.max(0, Math.min(100, Math.round(percent)));
   attendPercent.textContent = `${p}%`;
-  attendProgress.style.background = `conic-gradient(#00b4ff ${p * 3.6}deg, rgba(0, 180, 255, 0.25) ${p * 3.6}deg)`;
+  attendProgress.style.background = `conic-gradient(#0000cc ${p * 3.6}deg, rgba(255, 242, 0, 0.35) ${p * 3.6}deg)`;
 }
 
 function pct(sim) {
   return Math.round((sim || 0) * 100);
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return "";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function pickRecognized(data) {
@@ -51,10 +101,10 @@ function pickRecognized(data) {
 
 function failureMessage(data) {
   if ((data.gallery_count ?? 0) === 0) {
-    return "Chưa có sinh viên nào trong hệ thống. Vào Thêm sinh viên mới để đăng ký khuôn mặt trước.";
+    return "Chưa có sinh viên nào trong hệ thống. Vào trang quản trị để đăng ký khuôn mặt trước.";
   }
   if (!data.results || data.results.length === 0) {
-    return "Không thấy khuôn mặt. Bật đèn, nhìn thẳng camera, để mặt ở giữa khung (một người).";
+    return "Không thấy khuôn mặt. Bật đèn, nhìn thẳng camera và để mặt ở giữa khung.";
   }
   const th = data.threshold ?? MIN_SIM;
   const best = data.results.reduce((a, b) =>
@@ -66,13 +116,13 @@ function failureMessage(data) {
     const margin = best.margin ?? 0;
     const minMargin = data.min_margin ?? MIN_MARGIN;
     if ((best.similarity || 0) < th) {
-      return `Thấy mặt nhưng độ giống thấp (${pct(best.similarity)}%, cần ≥${pct(th)}%).${near} Bật sáng hơn hoặc đăng ký lại.`;
+      return `Thấy mặt nhưng độ giống thấp (${pct(best.similarity)}%, cần ≥${pct(th)}%).${near}`;
     }
     if (margin < minMargin) {
-      return `Khó phân biệt với người khác (chênh ${pct(margin)}%, cần ≥${pct(minMargin)}%).${near} Nhìn thẳng camera, thử lại.`;
+      return `Khó phân biệt với người khác (chênh ${pct(margin)}%, cần ≥${pct(minMargin)}%).${near}`;
     }
   }
-  return `Thấy mặt nhưng chưa khớp sinh viên đã đăng ký (${pct(best.similarity)}%, cần ≥${pct(th)}%).${near} Đăng ký lại hoặc bật sáng hơn.`;
+  return `Thấy mặt nhưng chưa khớp sinh viên đã đăng ký (${pct(best.similarity)}%, cần ≥${pct(th)}%).${near}`;
 }
 
 function setButtonsBusy(busy) {
@@ -80,6 +130,8 @@ function setButtonsBusy(busy) {
   captureBtn.disabled = busy;
   pickBtn.disabled = busy;
   startBtn.disabled = busy;
+  retakeBtn.disabled = busy;
+  if (nativeCaptureBtn) nativeCaptureBtn.disabled = busy;
   if (nativeCaptureInput) nativeCaptureInput.disabled = busy;
 }
 
@@ -90,6 +142,10 @@ function showSnapshotFromBlob(blob) {
   snapshot.src = url;
   snapshot.classList.remove("hidden");
   video.classList.add("offscreen");
+  retakeBtn.classList.remove("hidden");
+  setCameraLabel("Ảnh đang kiểm tra");
+  setFrameMeta(formatBytes(blob.size));
+  setCameraState(false, "Ảnh tĩnh");
 }
 
 function showLivePreview() {
@@ -101,20 +157,24 @@ function showLivePreview() {
   snapshot.removeAttribute("src");
   video.classList.remove("offscreen");
   retakeBtn.classList.add("hidden");
+  setCameraLabel("Webcam trực tiếp");
 }
 
 async function waitForVideoReady() {
   await video.play().catch(() => {});
   for (let i = 0; i < 60; i++) {
-    if (video.videoWidth > 0 && video.videoHeight > 0) return;
+    if (video.videoWidth > 0 && video.videoHeight > 0) {
+      setFrameMeta(`${video.videoWidth} × ${video.videoHeight}`);
+      return;
+    }
     await new Promise((r) => setTimeout(r, 100));
   }
-  throw new Error("Camera chưa có hình (videoWidth=0). Đợi 1–2 giây rồi chụp lại.");
+  throw new Error("Camera chưa có hình. Đợi 1-2 giây rồi chụp lại.");
 }
 
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Trình duyệt không hỗ trợ camera. Dùng HTTPS hoặc Chọn ảnh từ máy.");
+    throw new Error("Trình duyệt không hỗ trợ webcam. Dùng HTTPS, Camera máy hoặc Tải ảnh.");
   }
   if (!stream) {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -125,14 +185,20 @@ async function startCamera() {
   }
   showLivePreview();
   retakeBtn.classList.remove("hidden");
+  setCameraState(true, "Camera bật");
   await waitForVideoReady();
 }
 
 function stopCamera() {
-  if (!stream) return;
+  if (!stream) {
+    setCameraState(false, "Tạm dừng");
+    return;
+  }
   stream.getTracks().forEach((t) => t.stop());
   stream = null;
   video.srcObject = null;
+  setCameraState(false, "Tạm dừng");
+  setFrameMeta("Chưa có khung hình");
 }
 
 function stopLiveTimer() {
@@ -196,41 +262,40 @@ function renderComparePanel(data, faceIndex = 0) {
   const minMargin = data.min_margin ?? MIN_MARGIN;
   const top1 = ranking[0];
   const top2 = ranking[1];
-  const margin =
-    face?.margin ??
-    (top1 && top2 ? top1.similarity - top2.similarity : 0);
-
+  const margin = face?.margin ?? (top1 && top2 ? top1.similarity - top2.similarity : 0);
   const marginPct = pct(margin);
   const marginWarn = margin < minMargin;
 
-  let html = `<h2>So sánh ảnh chụp với gallery (${ranking.length} người)</h2>`;
-  html += `<p class="compare-meta">Điểm = max(frame enroll tốt nhất, prototype đã lọc nhiễu) + lật ảnh TTA. `;
-  html += `Ngưỡng ≥ ${pct(th)}%, chênh #1−#2 ≥ ${pct(minMargin)}% (đang ${marginPct}%${marginWarn ? ", <strong>dễ nhầm</strong>" : ""}). Detect ${pct(face?.detection_score ?? 0)}%.</p>`;
+  let html = `<div class="compare-head">`;
+  html += `<div><p class="eyebrow">Gallery</p><h2>So sánh ảnh với ${ranking.length} sinh viên</h2></div>`;
+  html += `<span class="compare-threshold">Ngưỡng ${pct(th)}%</span>`;
+  html += `</div>`;
+  html += `<p class="compare-meta">Điểm nhận diện dùng kết quả tốt nhất giữa prototype đã lọc nhiễu và frame enroll. Chênh #1-#2 cần ≥ ${pct(minMargin)}% (đang ${marginPct}%). Detect ${pct(face?.detection_score ?? 0)}%.</p>`;
   if (marginWarn && top1 && top2) {
-    html += `<p class="compare-warn">#1 ${top1.name} (${pct(top1.similarity)}%) vs #2 ${top2.name} (${pct(top2.similarity)}%) — chênh ${marginPct}%. Enroll lại MSSV của bạn: đủ sáng, nhìn thẳng, 100 frame.</p>`;
+    html += `<p class="compare-warn">#1 ${escapeHtml(top1.name)} (${pct(top1.similarity)}%) gần #2 ${escapeHtml(top2.name)} (${pct(top2.similarity)}%). Nên nhìn thẳng, tăng sáng hoặc enroll lại nếu vẫn dễ nhầm.</p>`;
   }
-  html += `<table class="compare-table"><thead><tr><th>#</th><th>MSSV / tên</th><th>Điểm</th><th>Proto</th><th>Max frame</th></tr></thead><tbody>`;
+  html += `<div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>#</th><th>MSSV / tên</th><th>Điểm</th><th>Proto</th><th>Max frame</th></tr></thead><tbody>`;
 
   ranking.forEach((row, i) => {
     const sim = row.similarity || 0;
     const pass = sim >= th;
     const isTop1 = i === 0;
-    const label = row.full_name ? `${row.name}<br><small>${row.full_name}</small>` : row.name;
+    const fullName = row.full_name ? `<br><small>${escapeHtml(row.full_name)}</small>` : "";
     const rowCls = isTop1 ? "is-top1" : pass ? "is-pass" : "";
     html += `<tr class="${rowCls}">`;
     html += `<td>${i + 1}${isTop1 ? " ★" : ""}</td>`;
-    html += `<td class="compare-mssv">${label}`;
+    html += `<td class="compare-mssv">${escapeHtml(row.name)}${fullName}`;
     if (isTop1 && face?.name) {
-      html += `<br><small class="compare-verdict">Kết luận: ${face.name}</small>`;
+      html += `<br><small class="compare-verdict">Kết luận: ${escapeHtml(face.name)}</small>`;
     }
     html += `</td>`;
-    html += `<td class="compare-pct-cell"><strong>${pct(sim)}</strong> %</td>`;
-    html += `<td>${pct(row.similarity_proto ?? 0)} %</td>`;
-    html += `<td>${pct(row.similarity_max_frame ?? 0)} %</td>`;
+    html += `<td class="compare-pct-cell"><strong>${pct(sim)}</strong>%</td>`;
+    html += `<td>${pct(row.similarity_proto ?? 0)}%</td>`;
+    html += `<td>${pct(row.similarity_max_frame ?? 0)}%</td>`;
     html += `</tr>`;
   });
 
-  html += `</tbody></table>`;
+  html += `</tbody></table></div>`;
   comparePanel.innerHTML = html;
   comparePanel.classList.remove("hidden");
 }
@@ -261,18 +326,18 @@ async function runSnapshotRecognize(blob, sourceLabel) {
   setConfirmProgress(0);
   confirmingSince = null;
   confirmIdentity = null;
-  statusEl.textContent = "Đang nhận diện ảnh...";
+  setStatus("Đang gửi ảnh lên server nhận diện...", "busy");
 
   try {
     const data = await recognizeBlob(blob, { compareAll: true });
     if (!data.ok) {
       hideComparePanel();
-      statusEl.textContent = data.message || "Không thể nhận diện. Vui lòng thử lại.";
+      setStatus(data.message || "Không thể nhận diện. Vui lòng thử lại.", "error");
       return;
     }
     if (!data.results?.length) {
       hideComparePanel();
-      statusEl.textContent = failureMessage(data);
+      setStatus(failureMessage(data), "warning");
       return;
     }
     renderComparePanel(data, 0);
@@ -280,13 +345,16 @@ async function runSnapshotRecognize(blob, sourceLabel) {
     if (recognized) {
       confirmed = true;
       stopLiveTimer();
-      statusEl.textContent = `Đã điểm danh (${sourceLabel}) sinh viên ${recognized.name} — độ giống ${pct(recognized.similarity)}%. Xem bảng so sánh bên dưới.`;
+      setStatus(
+        `Đã điểm danh (${sourceLabel}) sinh viên ${recognized.name} với độ giống ${pct(recognized.similarity)}%.`,
+        "success"
+      );
       return;
     }
-    statusEl.textContent = `${failureMessage(data)} Xem bảng so sánh bên dưới.`;
+    setStatus(`${failureMessage(data)} Xem bảng so sánh bên dưới.`, "warning");
   } catch (err) {
     hideComparePanel();
-    statusEl.textContent = err.message || String(err);
+    setStatus(err.message || String(err), "error");
     console.error(err);
   } finally {
     setButtonsBusy(false);
@@ -295,7 +363,7 @@ async function runSnapshotRecognize(blob, sourceLabel) {
 
 async function processImageFile(file, sourceLabel) {
   if (!file || !file.type.startsWith("image/")) {
-    statusEl.textContent = "File không phải ảnh.";
+    setStatus("File không phải ảnh.", "error");
     return;
   }
   stopLiveTimer();
@@ -308,6 +376,7 @@ async function processImageFile(file, sourceLabel) {
 
 async function tickRecognize() {
   if (confirmed || recognizing) return;
+  recognizing = true;
   try {
     const blob = await captureFrameBlob();
     const data = await recognizeBlob(blob);
@@ -316,7 +385,7 @@ async function tickRecognize() {
       confirmingSince = null;
       setConfirming(false);
       setConfirmProgress(0);
-      statusEl.textContent = failureMessage(data);
+      setStatus(failureMessage(data), "warning");
       return;
     }
     if (!confirmingSince || confirmIdentity !== recognized.name) {
@@ -332,16 +401,20 @@ async function tickRecognize() {
       setConfirmProgress(100);
       stopLiveTimer();
       stopCamera();
-      statusEl.textContent = `Đã điểm danh sinh viên ${recognized.name} thành công.`;
+      setStatus(`Đã điểm danh sinh viên ${recognized.name} thành công.`, "success");
       return;
     }
-    statusEl.textContent = `Đang xác nhận ${recognized.name}... ${elapsed.toFixed(1)}/${REQUIRED_SECONDS}s (${pct(recognized.similarity)}%)`;
+    setStatus(
+      `Đang xác nhận ${recognized.name}... ${elapsed.toFixed(1)}/${REQUIRED_SECONDS}s (${pct(recognized.similarity)}%).`,
+      "live"
+    );
   } catch (err) {
-    statusEl.textContent = err.message || String(err);
+    setStatus(err.message || String(err), "error");
+  } finally {
+    recognizing = false;
   }
 }
 
-/** Chụp từ khung video đang mở */
 captureBtn.addEventListener("click", async () => {
   stopLiveTimer();
   confirmed = false;
@@ -350,19 +423,18 @@ captureBtn.addEventListener("click", async () => {
   setConfirmProgress(0);
 
   try {
-    statusEl.textContent = "Đang mở camera...";
+    setStatus("Đang mở webcam...", "busy");
     await startCamera();
-    statusEl.textContent = "Đang chụp...";
+    setStatus("Đang chụp khung hình hiện tại...", "busy");
     const blob = await captureFrameBlob();
     showSnapshotFromBlob(blob);
     await runSnapshotRecognize(blob, "ảnh chụp");
   } catch (err) {
-    statusEl.textContent = err.message || "Không chụp được. Thử «Camera máy» hoặc «Chọn ảnh».";
+    setStatus(err.message || "Không chụp được. Thử Camera máy hoặc Tải ảnh.", "error");
     console.error(err);
   }
 });
 
-/** Mobile: mở app Camera chụp 1 tấm */
 if (nativeCaptureInput) {
   nativeCaptureInput.addEventListener("change", async () => {
     const file = nativeCaptureInput.files?.[0];
@@ -372,12 +444,12 @@ if (nativeCaptureInput) {
   });
 }
 
-const nativeCaptureBtn = document.getElementById("nativeCaptureBtn");
 if (nativeCaptureBtn && nativeCaptureInput) {
   nativeCaptureBtn.addEventListener("click", () => {
     stopLiveTimer();
     confirmed = false;
     hideComparePanel();
+    setStatus("Đang mở camera của thiết bị...", "busy");
     nativeCaptureInput.click();
   });
 }
@@ -386,6 +458,7 @@ pickBtn.addEventListener("click", () => {
   stopLiveTimer();
   confirmed = false;
   hideComparePanel();
+  setStatus("Chọn ảnh khuôn mặt để kiểm tra.", "idle");
   fileInput.click();
 });
 
@@ -403,12 +476,12 @@ retakeBtn.addEventListener("click", async () => {
   setConfirming(false);
   setConfirmProgress(0);
   showLivePreview();
-  statusEl.textContent = "Đang mở lại camera...";
+  setStatus("Đang mở lại webcam...", "busy");
   try {
     await startCamera();
-    statusEl.textContent = "Sẵn sàng. Chụp lại hoặc bắt đầu live.";
+    setStatus("Sẵn sàng. Chụp lại hoặc bật Live.", "idle");
   } catch (err) {
-    statusEl.textContent = err.message || "Bật camera hoặc chọn ảnh từ máy.";
+    setStatus(err.message || "Bật camera hoặc chọn ảnh từ máy.", "error");
   }
 });
 
@@ -421,12 +494,14 @@ startBtn.addEventListener("click", async () => {
   setConfirmProgress(0);
   showLivePreview();
   try {
+    setStatus("Đang mở webcam...", "busy");
     await startCamera();
-    statusEl.textContent = "Đang tìm khuôn mặt sinh viên (live)...";
+    setCameraState(true, "Đang live");
+    setStatus("Đang tìm khuôn mặt sinh viên...", "live");
     stopLiveTimer();
     timer = setInterval(tickRecognize, 400);
   } catch (err) {
-    statusEl.textContent = err.message || "Không mở được camera.";
+    setStatus(err.message || "Không mở được webcam.", "error");
   }
 });
 
@@ -440,5 +515,9 @@ stopBtn.addEventListener("click", () => {
   setConfirmProgress(0);
   stopCamera();
   showLivePreview();
-  statusEl.textContent = "Đã dừng.";
+  setCameraState(false, "Tạm dừng");
+  setStatus("Đã dừng camera và luồng nhận diện.", "idle");
 });
+
+setStatus("Chọn Live để điểm danh liên tục hoặc chụp một ảnh để kiểm tra.", "idle");
+setCameraState(false, "Tạm dừng");
