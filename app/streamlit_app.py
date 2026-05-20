@@ -27,6 +27,7 @@ if str(ROOT) not in sys.path:
 
 import numpy as np
 import streamlit as st
+from PIL import Image
 from streamlit_webrtc import webrtc_streamer
 
 from app.webcam_client import (
@@ -971,27 +972,181 @@ def _ui_student_attend() -> None:
         st.rerun()
 
 
-# --------------------------------- main -------------------------------------
-if "view" not in st.session_state:
-    st.session_state["view"] = "home"
+def _capture_to_rgb(captured) -> np.ndarray | None:
+    if captured is None:
+        return None
+    img = Image.open(captured).convert("RGB")
+    return np.array(img)
 
-view = st.session_state["view"]
-if view == "home":
-    _ui_home()
-elif view == "admin_login":
-    _ui_admin_login()
-elif view == "admin_menu":
-    _ui_admin_menu()
-elif view == "admin_enroll":
-    _ui_admin_enroll()
-elif view == "admin_session":
-    _ui_admin_session()
-elif view == "admin_roster":
-    _ui_admin_roster()
-elif view == "student_portal":
-    _ui_student_portal()
-elif view == "student_attend":
-    _ui_student_attend()
-else:
-    st.session_state["view"] = "home"
+
+def _save_capture(identity: str, image_rgb: np.ndarray) -> str:
+    out_dir = ROOT / "data" / "raw" / "custom" / identity
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    out_path = out_dir / f"{ts}.jpg"
+    Image.fromarray(image_rgb).save(out_path, format="JPEG", quality=95)
+    return str(out_path)
+
+
+def _render_webrtc_autostart(key: str, frame_callback) -> None:
+    """Try auto-start camera to avoid extra click on enroll flow."""
+    try:
+        webrtc_streamer(
+            key=key,
+            rtc_configuration=RTC_ICE,
+            media_stream_constraints=WEBCAM_MEDIA,
+            video_frame_callback=frame_callback,
+            desired_playing_state=True,
+        )
+    except TypeError:
+        # Fallback for older streamlit-webrtc versions without desired_playing_state.
+        webrtc_streamer(
+            key=key,
+            rtc_configuration=RTC_ICE,
+            media_stream_constraints=WEBCAM_MEDIA,
+            video_frame_callback=frame_callback,
+            translations={"start": "Bật camera", "stop": "Tắt camera"},
+        )
+
+
+@st.fragment(run_every=timedelta(milliseconds=300))
+def _fragment_poll_simple_enroll() -> None:
+    bid = st.session_state.get("simple_enroll_bid")
+    if not bid:
+        return
+    buf = get_buffer(bid)
+    if not buf:
+        return
+    mssv = str(st.session_state.get("simple_enroll_mssv", ""))
+    with buf["lock"]:
+        n = len(buf["crops"])
+        done = buf["done"]
+        elapsed = time.time() - buf["t0"]
+    st.progress(min(n / ENROLL_TARGET_FRAMES, 1.0))
+    st.caption(
+        f"Đã thu **{n}** / {ENROLL_TARGET_FRAMES} frame · {elapsed:.1f}s / {ENROLL_MAX_SECONDS}s"
+    )
+    if not done and elapsed < ENROLL_MAX_SECONDS and n < ENROLL_TARGET_FRAMES:
+        return
+    with buf["lock"]:
+        crops = list(buf["crops"])
+        paths = list(buf["paths"])
+    register_drop(bid)
+    st.session_state.pop("simple_enroll_bid", None)
+    full_name = str(st.session_state.pop("simple_enroll_full_name", "")).strip()
+    st.session_state.pop("simple_enroll_mssv", None)
+    err: str | None = None
+    if len(crops) < ENROLL_MIN_FRAMES:
+        err = (
+            f"Hình ảnh chưa đủ rõ, chỉ thu được {len(crops)} frame "
+            f"(cần ít nhất {ENROLL_MIN_FRAMES})."
+        )
+    elif len(crops) < ENROLL_TARGET_FRAMES and elapsed >= ENROLL_MAX_SECONDS:
+        err = (
+            f"Chưa đủ {ENROLL_TARGET_FRAMES} frame trong {ENROLL_MAX_SECONDS}s "
+            f"(hiện có {len(crops)})."
+        )
+    if err:
+        st.session_state["simple_enroll_result"] = {"ok": False, "message": err}
+    else:
+        pipe = _get_pipeline()
+        db = _get_db()
+        emb = pipe.embedder.encode(crops)
+        pipe.gallery.add(emb, [mssv] * len(crops), paths)
+        pipe.gallery.save()
+        db.upsert_student(mssv)
+        display_name = full_name if full_name else mssv
+        st.session_state["simple_enroll_result"] = {
+            "ok": True,
+            "message": f"Đã thêm sinh viên mới **{display_name}** (MSSV `{mssv}`) với {len(crops)} frame.",
+        }
     st.rerun()
+
+
+def _ui_simple_enroll() -> None:
+    st.subheader("Thêm sinh viên")
+    st.caption(
+        f"Nhập họ tên + MSSV, sau đó bấm nút đỏ để quay tối đa {ENROLL_TARGET_FRAMES} frame trong {ENROLL_MAX_SECONDS}s."
+    )
+    flash = st.session_state.pop("simple_enroll_result", None)
+    if flash:
+        if flash.get("ok"):
+            st.success(flash["message"])
+        else:
+            st.error(flash["message"])
+    full_name = st.text_input("Họ và tên", placeholder="vd: Nguyễn Văn A").strip()
+    mssv = _norm_mssv(st.text_input("MSSV", placeholder="vd: 22120001"))
+    pipe = _get_pipeline()
+    db = _get_db()
+    if mssv and _identity_exists(pipe, db, mssv):
+        st.error("MSSV này đã có trong hệ thống.")
+        return
+    if st.button("🔴 Thêm sinh viên mới", type="primary", key="simple_enroll_start"):
+        if len(full_name) < 3:
+            st.error("Vui lòng nhập họ tên hợp lệ (ít nhất 3 ký tự).")
+            return
+        if not mssv:
+            st.error("Vui lòng nhập MSSV.")
+            return
+        bid = str(uuid.uuid4())
+        stash = ROOT / "data" / "raw" / "custom" / _norm_name(mssv)
+        init_enroll_buffer(
+            bid,
+            pipeline=pipe,
+            norm_identity=mssv,
+            stash_dir=stash,
+            target_frames=ENROLL_TARGET_FRAMES,
+            max_seconds=float(ENROLL_MAX_SECONDS),
+            det_score_min=DET_SCORE_MIN,
+        )
+        st.session_state["simple_enroll_bid"] = bid
+        st.session_state["simple_enroll_full_name"] = full_name
+        st.session_state["simple_enroll_mssv"] = mssv
+        st.rerun()
+
+    if st.session_state.get("simple_enroll_bid"):
+        bid = st.session_state["simple_enroll_bid"]
+        active_mssv = st.session_state.get("simple_enroll_mssv", "")
+        st.info(f"Đang quay đăng ký cho MSSV `{active_mssv}`. Camera tự bật, bạn chỉ cần nhìn thẳng khung hình.")
+        _render_webrtc_autostart(
+            key=f"webrtc_simple_enroll_{active_mssv}",
+            frame_callback=enroll_frame_callback(bid),
+        )
+        if st.button("Hủy quay", key="simple_enroll_cancel"):
+            register_drop(bid)
+            st.session_state.pop("simple_enroll_bid", None)
+            st.session_state.pop("simple_enroll_full_name", None)
+            st.session_state.pop("simple_enroll_mssv", None)
+            st.rerun()
+        _fragment_poll_simple_enroll()
+
+
+def _ui_simple_test() -> None:
+    st.subheader("Camera kiểm tra nhận diện")
+    st.caption("Chụp ảnh để xem hệ thống nhận diện tên gì.")
+    captured = st.camera_input("Camera kiểm tra", key="simple_test_cam")
+    if st.button("Kiểm tra nhận diện", type="primary", key="simple_test_btn"):
+        image_rgb = _capture_to_rgb(captured)
+        if image_rgb is None:
+            st.error("Vui lòng chụp ảnh trước.")
+            return
+        pipe = _get_pipeline()
+        results = pipe.recognize_image(image_rgb)
+        if not results:
+            st.warning("Không phát hiện khuôn mặt.")
+            return
+        for i, r in enumerate(results, start=1):
+            st.write(f"Khuôn mặt {i}: **{r.name}** (độ tương đồng: {r.similarity:.3f})")
+
+
+def _run_simple_app() -> None:
+    st.title("Nhận diện sinh viên (rút gọn)")
+    tab1, tab2 = st.tabs(["Thêm sinh viên", "Camera test"])
+    with tab1:
+        _ui_simple_enroll()
+    with tab2:
+        _ui_simple_test()
+
+
+# --------------------------------- main (simple) ----------------------------
+_run_simple_app()

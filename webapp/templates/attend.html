@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Camera test nhận diện</title>
+  <meta name="description" content="Trang điểm danh sinh viên bằng camera mobile, hiển thị tên nhận diện theo thời gian thực." />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Camera test nhận diện</h1>
+    <div class="preview-wrap">
+      <video id="video" autoplay playsinline muted class="preview"></video>
+      <div id="attendProgress" class="attend-progress hidden" aria-label="Tien trinh xac nhan diem danh">
+        <span id="attendPercent">0%</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="startBtn">Bắt đầu điểm danh</button>
+      <button id="stopBtn">Dừng</button>
+    </div>
+    <p id="status">Chưa bắt đầu.</p>
+    <a href="/">← Về trang chủ</a>
+  </main>
+  <script src="/static/attend.js"></script>
+</body>
+</html>

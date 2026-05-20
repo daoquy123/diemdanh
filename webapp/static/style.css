@@ -1,0 +1,73 @@
+body { font-family: Arial, sans-serif; margin: 0; background: #111; color: #eee; }
+.container { max-width: 720px; margin: 0 auto; padding: 20px; }
+.preview-wrap { position: relative; }
+.preview { width: 100%; border-radius: 12px; background: #000; margin: 12px 0; }
+input { width: 100%; padding: 10px; margin: 6px 0 10px; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #eee; }
+button { padding: 10px 14px; border: 0; border-radius: 8px; cursor: pointer; margin-right: 8px; }
+button.danger { background: #d11; color: #fff; font-weight: 700; }
+.actions { margin: 8px 0 12px; }
+a { color: #7ab7ff; text-decoration: none; }
+.card-grid { display: grid; gap: 10px; margin-top: 16px; }
+.card { background: #1a1a1a; border: 1px solid #333; padding: 14px; border-radius: 10px; display: block; }
+.scan-progress {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: conic-gradient(#00ff80 0deg, rgba(0, 255, 128, 0.2) 0deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.scan-progress::before {
+  content: "";
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #111;
+  position: absolute;
+}
+.scan-progress span {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: #00ff80;
+}
+.scan-progress.done {
+  background: conic-gradient(#00ff80 360deg, rgba(0, 255, 128, 0.2) 360deg);
+}
+.attend-progress {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: conic-gradient(#00b4ff 0deg, rgba(0, 180, 255, 0.25) 0deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.attend-progress::before {
+  content: "";
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #111;
+  position: absolute;
+}
+.attend-progress span {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: #00b4ff;
+}
+.hidden { display: none; }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

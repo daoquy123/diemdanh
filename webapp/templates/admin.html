@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Thêm sinh viên mới</title>
+  <meta name="description" content="Trang quản trị thêm sinh viên mới bằng camera, thu 100 frame khuôn mặt." />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Thêm sinh viên mới</h1>
+    <label>Họ và tên</label>
+    <input id="fullName" placeholder="Nguyễn Văn A" />
+    <label>MSSV</label>
+    <input id="mssv" placeholder="22120001" />
+    <div class="preview-wrap">
+      <video id="video" autoplay playsinline muted class="preview"></video>
+      <div id="scanProgress" class="scan-progress hidden" aria-label="Tiến trình quét">
+        <span id="scanPercent">0%</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="enrollBtn" class="danger">🔴 Thêm sinh viên mới</button>
+      <button id="stopBtn">Dừng quay</button>
+    </div>
+    <p id="status">Sẵn sàng.</p>
+    <a href="/">← Về trang chủ</a>
+  </main>
+  <script src="/static/admin.js"></script>
+</body>
+</html>
