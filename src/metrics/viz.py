@@ -156,6 +156,7 @@ def plot_tsne_embeddings(
         init="pca",
         learning_rate="auto",
         metric="cosine",
+        n_jobs=1,  # avoid joblib/loky Win32 hang when probing physical cores
     )
     points = tsne.fit_transform(embeddings)
 

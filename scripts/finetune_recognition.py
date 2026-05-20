@@ -594,9 +594,15 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     dump_config(cfg, out_dir / "config.yaml")
 
-    # t-SNE BEFORE fine-tune (subsample — full set is too slow on large corpora)
+    # t-SNE BEFORE fine-tune (subsample — skip on large sets; slow / flaky on Windows)
     _emb_bs = min(256, max(64, len(eval_set) // 2000 + 64)) if device.type == "cuda" else 64
-    if not args.skip_tsne and args.tsne_max_samples > 0:
+    _auto_skip_tsne = len(eval_set) >= 10_000
+    if _auto_skip_tsne and not args.skip_tsne:
+        logger.info(
+            f"t-SNE auto-skipped ({len(eval_set)} images). Use --skip-tsne explicitly or "
+            "small --custom-data to enable t-SNE."
+        )
+    if not args.skip_tsne and not _auto_skip_tsne and args.tsne_max_samples > 0:
         try:
             idx_tsne = _indices_for_tsne_plot(
                 eval_set, max_samples=args.tsne_max_samples, max_classes=20, seed=args.seed
@@ -665,7 +671,7 @@ def main() -> None:
     )
 
     # t-SNE AFTER + confusion + curves + report --------------------------
-    if not args.skip_tsne and args.tsne_max_samples > 0:
+    if not args.skip_tsne and not _auto_skip_tsne and args.tsne_max_samples > 0:
         try:
             idx_tsne = _indices_for_tsne_plot(
                 eval_set, max_samples=args.tsne_max_samples, max_classes=20, seed=args.seed

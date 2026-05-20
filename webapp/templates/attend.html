@@ -12,17 +12,25 @@
     <h1>Camera test nhận diện</h1>
     <div class="preview-wrap">
       <video id="video" autoplay playsinline muted class="preview"></video>
+      <img id="snapshot" class="preview snapshot hidden" alt="Ảnh vừa chụp" />
       <div id="attendProgress" class="attend-progress hidden" aria-label="Tien trinh xac nhan diem danh">
         <span id="attendPercent">0%</span>
       </div>
     </div>
     <div class="actions">
-      <button id="startBtn">Bắt đầu điểm danh</button>
-      <button id="stopBtn">Dừng</button>
+      <button type="button" id="startBtn">Bắt đầu điểm danh (live)</button>
+      <button type="button" id="captureBtn" class="primary">Chụp ảnh (webcam)</button>
+      <button type="button" id="nativeCaptureBtn">Camera máy (chụp 1 tấm)</button>
+      <button type="button" id="pickBtn">Chọn ảnh từ máy</button>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" hidden />
+      <input type="file" id="nativeCaptureInput" accept="image/*" capture="user" hidden />
+      <button type="button" id="retakeBtn" class="hidden">Xem camera / chụp lại</button>
+      <button type="button" id="stopBtn">Dừng</button>
     </div>
-    <p id="status">Chưa bắt đầu.</p>
+    <p id="status">Chưa bắt đầu. Dùng live hoặc chụp một ảnh để thử.</p>
+    <section id="comparePanel" class="compare-panel hidden" aria-label="So sanh voi gallery"></section>
     <a href="/">← Về trang chủ</a>
   </main>
-  <script src="/static/attend.js"></script>
+  <script src="/static/attend.js?v=6"></script>
 </body>
 </html>

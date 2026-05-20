@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
+import cv2
 import numpy as np
 
 from ..alignment import align_face
@@ -104,6 +105,14 @@ class AttendancePipeline:
             antispoof_size=antispoof_size,
         )
 
+    def _query_embedding(self, crop: np.ndarray) -> np.ndarray:
+        """Embed with horizontal-flip TTA (average of crop + mirror)."""
+        flipped = cv2.flip(crop, 1)
+        embs = self.embedder.encode([crop, flipped])
+        mean = embs.mean(axis=0).astype(np.float32)
+        mean /= float(np.linalg.norm(mean)) + 1e-9
+        return mean
+
     # ---------------------------------------------------------- inference API
     def detect_and_align(self, image_rgb: np.ndarray) -> list[tuple[DetectedFace, np.ndarray]]:
         """Detect faces and return ``(face, aligned_crop)`` pairs."""
@@ -120,10 +129,9 @@ class AttendancePipeline:
         det_pairs = self.detect_and_align(image_rgb)
         if not det_pairs:
             return []
-        crops = [c for _, c in det_pairs]
-        embeddings = self.embedder.encode(crops)
         results: list[RecognitionResult] = []
-        for (face, crop), emb in zip(det_pairs, embeddings):
+        for face, crop in det_pairs:
+            emb = self._query_embedding(crop)
             is_real, real_prob = (None, None)
             if self.anti_spoof is not None:
                 # Anti-spoof prefers a slightly larger crop than 112; cv2.resize

@@ -16,6 +16,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import cv2
@@ -40,6 +41,11 @@ def main() -> None:
     parser.add_argument("--data", required=True, help="ImageFolder root: <data>/<student_name>/*.jpg")
     parser.add_argument("--gallery", default="embeddings_db")
     parser.add_argument("--reset", action="store_true", help="Wipe the gallery before enrolling")
+    parser.add_argument(
+        "--with-tsne",
+        action="store_true",
+        help="Plot gallery t-SNE after enroll (slow; often hangs on Windows — gallery is already saved)",
+    )
     args = parser.parse_args()
 
     det_cfg = load_config(args.detection)
@@ -93,9 +99,16 @@ def main() -> None:
         logger.info(f"Enrolled {name}: +{len(crops)} embeddings")
 
     gallery.save()
-    logger.success(f"Gallery now contains {len(gallery)} embeddings across {len(gallery.unique_identities)} identities → {store_path}")
+    logger.success(
+        f"Gallery now contains {len(gallery)} embeddings across "
+        f"{len(gallery.unique_identities)} identities → {store_path}"
+    )
 
-    # t-SNE viz of the gallery — useful sanity check for fine-tuned embeddings
+    if not args.with_tsne:
+        if sys.platform == "win32":
+            logger.info("t-SNE skipped (Windows). Gallery OK. Add --with-tsne only if you need the plot.")
+        return
+
     try:
         if len(enrolled_emb) >= 4 and len(set(enrolled_names)) >= 2:
             unique = sorted(set(enrolled_names))
@@ -103,8 +116,11 @@ def main() -> None:
             labels_arr = np.array([id_to_lbl[n] for n in enrolled_names])
             embs_arr = np.stack(enrolled_emb).astype(np.float32)
             out_png = Path("reports/figures/gallery_tsne.png")
+            out_png.parent.mkdir(parents=True, exist_ok=True)
             plot_tsne_embeddings(embs_arr, labels_arr, out_png, label_names=unique)
             logger.info(f"t-SNE saved to {out_png}")
+    except KeyboardInterrupt:
+        logger.warning("t-SNE interrupted — embeddings_db is already saved.")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"t-SNE skipped: {e}")
 
